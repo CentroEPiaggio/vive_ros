@@ -96,18 +96,15 @@
        $ echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
        $ source ~/.bashrc
        ```
-    9. #### Install additional Ros libraries (TO UPDATE!!!!)
+    9. #### Install additional ROS libraries
        ```sh 
-       $ sudo apt-get install ros-melodic-gazebo-* -y
-       $ sudo apt-get install ros-melodic-moveit* -y
-       $ sudo apt-get install ros-melodic-joint* -y
        $ sudo apt-get install ros-melodic-tf -y
        $ sudo apt-get install ros-melodic-tf2* -y
        ``` 
     9. #### Install `vive_ros` package in the catkin_ws
        ```sh 
        $ cd ~/catkin_ws/src
-       $ git clone "INSERT REPO LINK"
+       $ git clone https://github.com/CentroEPiaggio/vive_ros.git
        $ cd ..
        $ catkin_make
        ```
