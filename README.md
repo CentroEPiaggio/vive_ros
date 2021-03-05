@@ -119,6 +119,7 @@
     2. #### Run Steam 
        ```sh
        $ sudo dpkg --install ~/Downloads/steam_latest.deb
+       $ steam
        ```
     3. #### Setup or log in into your Steam account and install SteamVR from the Steam store
 
