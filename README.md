@@ -1,4 +1,4 @@
-# Teleoperation with HTC Vive HMD and trackers
+# Teleoperation with HTC Vive HMD and controllers
 
 **Hardware requirements:**
 - GPU based system (>= Scheda grafica NVIDIA GeForce RTX 2070 Max-Q)
@@ -178,7 +178,7 @@
    ```sh
     $ roscore
    ```
-2. Launch HMD and trackers nodes:
+2. Launch HMD and controllers nodes:
    
    Open a new terminal and run:
    
@@ -186,7 +186,9 @@
     $ roslaunch vive_ros vive.launch
    ```
  
-3. The sensor frame are shown in the images below:
+4. The sensor frame orientations are shown in the images below.
+   
+   (DISCLAIMER) The origin of the reference frames drawn is not the real one.
 
     ![Alt text](images/lighthouse_frame.jpg?raw=true "lighthouse frame")
    
