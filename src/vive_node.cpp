@@ -1,3 +1,4 @@
+
 #include <cmath>
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
@@ -11,7 +12,7 @@ void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_s
 void handleInfoMessages(const std::string &msg) {ROS_INFO(" [VIVE] %s",msg.c_str());}
 void handleErrorMessages(const std::string &msg) {ROS_ERROR(" [VIVE] %s",msg.c_str());}
 
-//#define USE_IMAGE
+#define USE_IMAGE
 
 #define USE_OPENGL
 //#define USE_VULKAN
@@ -47,10 +48,10 @@ class CMainApplicationMod : public CMainApplication{
     int RenderFrame_hz_count;
 
     void InitTextures(){
-      ros_img[L] = cv::Mat(cv::Size(640, 480), CV_8UC3, CV_RGB(255,0,0));
-      ros_img[R] = cv::Mat(cv::Size(640, 480), CV_8UC3, CV_RGB(0,255,0));
-      hmd_panel_img[L] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(100,100,100));
-      hmd_panel_img[R] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(100,100,100));
+      ros_img[L] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(255, 255, 255));
+      ros_img[R] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(255, 255, 255));
+      hmd_panel_img[L] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(255, 255, 255));
+      hmd_panel_img[R] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(255, 255, 255));
       for ( int i = 0; i < vr::k_unMaxTrackedDeviceCount; i++){
         if(m_pHMD->GetTrackedDeviceClass(i) == vr::TrackedDeviceClass_HMD){
           m_pHMD->GetStringTrackedDeviceProperty( i, vr::Prop_ScreenshotHorizontalFieldOfViewDegrees_Float, (char *)&hmd_fov_h, sizeof(float), NULL );
@@ -81,7 +82,7 @@ class CMainApplicationMod : public CMainApplication{
       if ( m_iTrackedControllerCount != m_iTrackedControllerCount_Last || m_iValidPoseCount != m_iValidPoseCount_Last ){
         m_iValidPoseCount_Last = m_iValidPoseCount;
         m_iTrackedControllerCount_Last = m_iTrackedControllerCount;
-        dprintf( "PoseCount:%d(%s) Controllers:%d\n", m_iValidPoseCount, m_strPoseClasses.c_str(), m_iTrackedControllerCount );
+        //dprint( "PoseCount:%d(%s) Controllers:%d\n", m_iValidPoseCount, m_strPoseClasses.c_str(), m_iTrackedControllerCount );
       }
       UpdateHMDMatrixPose();
       ROS_INFO_THROTTLE(3.0,"RenderFrame() @ %d [fps]", [](int& cin, int dur){int ans = cin; cin=0; return ans/dur;}(RenderFrame_hz_count, 3));
@@ -92,7 +93,7 @@ class CMainApplicationMod : public CMainApplication{
     cv::Mat hmd_panel_img[LR];
     cv::Mat ros_img_resized[LR];
     void processROSStereoImage(cv::Mat (&in)[LR], cv::Mat (&out)[LR]){
-      const double hmd_eye2panel_z[XY] = { (double)out[L].rows/2/tan(hmd_fov/2), (double)out[L].rows/2/tan(hmd_fov/2) };
+      const double hmd_eye2panel_z[XY] = { (double)out[L].cols/2/tan(hmd_fov/2), (double)out[L].rows/2/tan(hmd_fov/2) };
       const double cam_pic_size[LR][XY] = { { (double)in[L].cols, (double)in[L].rows }, { (double)in[R].cols, (double)in[R].rows } };
       double cam_fov[LR][XY];
       int cam_pic_size_on_hmd[LR][XY];
@@ -101,7 +102,7 @@ class CMainApplicationMod : public CMainApplication{
         ROS_INFO_THROTTLE(3.0,"Process ROS image[%d] (%dx%d) with fov (%dx%d) to (%dx%d)", i, in[i].cols, in[i].rows, (int)cam_f[i][X], (int)cam_f[i][Y], out[i].cols, out[i].rows);
         for(int j=0;j<XY;j++){
           cam_fov[i][j] = 2 * atan( cam_pic_size[i][j]/2 / cam_f[i][j] );
-          cam_pic_size_on_hmd[i][j] = (int)( hmd_eye2panel_z[X] * 2 * tan(cam_fov[i][j]/2) );
+          cam_pic_size_on_hmd[i][j] = (int)( hmd_eye2panel_z[j] * 2 * tan(cam_fov[i][j]/2) );
         }
         cv::resize(in[i], ros_img_resized[i], cv::Size(cam_pic_size_on_hmd[i][X], cam_pic_size_on_hmd[i][Y]));
         cv::flip(ros_img_resized[i], ros_img_resized[i], 0);
@@ -302,7 +303,7 @@ class CMainApplicationMod : public CMainApplication
       if ( m_iTrackedControllerCount != m_iTrackedControllerCount_Last || m_iValidPoseCount != m_iValidPoseCount_Last ) {
         m_iValidPoseCount_Last = m_iValidPoseCount;
         m_iTrackedControllerCount_Last = m_iTrackedControllerCount;
-        dprintf( "PoseCount:%d(%s) Controllers:%d\n", m_iValidPoseCount, m_strPoseClasses.c_str(), m_iTrackedControllerCount );
+        //dprintf( "PoseCount:%d(%s) Controllers:%d\n", m_iValidPoseCount, m_strPoseClasses.c_str(), m_iTrackedControllerCount );
       }
       UpdateHMDMatrixPose();
       m_nFrameIndex = ( m_nFrameIndex + 1 ) % m_swapchainImages.size();
@@ -451,7 +452,7 @@ class VIVEnode
 
 VIVEnode::VIVEnode(int rate)
   : loop_rate_(rate)
-  , nh_()
+  , nh_("~")
   , tf_broadcaster_()
   , tf_listener_()
   , vr_()
@@ -466,10 +467,10 @@ VIVEnode::VIVEnode(int rate)
 
 #ifdef USE_IMAGE
   image_transport::ImageTransport it(nh_);
-  sub_L = it.subscribe("/image_left", 1, &VIVEnode::imageCb_L, this);
-  sub_R = it.subscribe("/image_right", 1, &VIVEnode::imageCb_R, this);
-  sub_i_L = nh_.subscribe("/camera_info_left", 1, &VIVEnode::infoCb_L, this);
-  sub_i_R = nh_.subscribe("/camera_info_right", 1, &VIVEnode::infoCb_R, this);
+  sub_L = it.subscribe("image_left", 1, &VIVEnode::imageCb_L, this);
+  sub_R = it.subscribe("image_right", 1, &VIVEnode::imageCb_R, this);
+  sub_i_L = nh_.subscribe("camera_info_left", 1, &VIVEnode::infoCb_L, this);
+  sub_i_R = nh_.subscribe("camera_info_right", 1, &VIVEnode::infoCb_R, this);
   pMainApplication = new CMainApplicationMod( 0, NULL );
   if (!pMainApplication->BInit()){
     pMainApplication->Shutdown();
@@ -631,6 +632,7 @@ void VIVEnode::Run()
       // It's a tracker
       if (dev_type == 3)
       {
+
         tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "tracker_"+cur_sn));
       }
       // It's a lighthouse
@@ -645,7 +647,7 @@ void VIVEnode::Run()
     tf::Transform tf_world;
     tf_world.setOrigin(tf::Vector3(world_offset_[0], world_offset_[1], world_offset_[2]));
     tf::Quaternion quat_world;
-    quat_world.setRPY(M_PI/2, 0, world_yaw_);
+    quat_world.setRPY(0, 0, 0);
     tf_world.setRotation(quat_world);
 
     tf_broadcaster_.sendTransform(tf::StampedTransform(tf_world, ros::Time::now(), "world", "world_vive"));
