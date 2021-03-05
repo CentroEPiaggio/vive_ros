@@ -194,5 +194,30 @@
    
     ![Alt text](images/controller_frame.jpg?raw=true "lighthouse frame")
 
+## Controllers tracking without HMD:
 
+It is possible to use track the controllers without connecting the HMD, but the controllers must be connected via USB.
+To set this mode:
+
+1. Enable a null (simulated) headset editing 
+    
+   ```sh
+    gedit ~/.steam/steam/steamapps/common/SteamVR/resources/settings/default.vrsettings
+   ```
+
+2. Change the third line from ```"requireHmd" : true``` to ``` "requireHmd" : false ```
+
+3. Add ```"activateMultipleDrivers" : true```
+
+4. Add the line ```"forcedDriver": "null"``` beneath it.
+
+5. Open ```default.vrsettings```
+
+   ```sh
+    $ gedit ~/.steam/steam/steamapps/common/SteamVR/drivers/null/resources/settings/default.vrsettings
+   ```
+
+6. Set ```"enable": true``` to enable it.
+
+Now launch Steam and SteamVR and then the nodes as already explained.
 
