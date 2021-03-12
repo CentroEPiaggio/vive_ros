@@ -578,7 +578,7 @@ void VIVEnode::Run()
       if (dev_type == 0) continue;
 
       tf::Transform tf;
-      tf.setOrigin(tf::Vector3(tf_matrix[0][3], tf_matrix[1][3], tf_matrix[2][3]));
+      tf.setOrigin(tf::Vector3(-tf_matrix[2][3], -tf_matrix[0][3], tf_matrix[1][3]));
 
       tf::Quaternion quat;
       tf::Matrix3x3 rot_matrix(tf_matrix[0][0], tf_matrix[0][1], tf_matrix[0][2],
@@ -586,6 +586,20 @@ void VIVEnode::Run()
                                tf_matrix[2][0], tf_matrix[2][1], tf_matrix[2][2]);
 
       rot_matrix.getRotation(quat);
+      
+      quat[3] = sqrt(fmax(0, 1 + rot_matrix[0][0] + rot_matrix[1][1]+ rot_matrix[2][2])) / 2;
+      quat[0] = sqrt(fmax(0, 1 + rot_matrix[0][0] - rot_matrix[1][1] - rot_matrix[2][2])) / 2;
+      quat[1] = sqrt(fmax(0, 1 - rot_matrix[0][0] + rot_matrix[1][1] - rot_matrix[2][2])) / 2;
+      quat[2] = sqrt(fmax(0, 1 - rot_matrix[0][0] - rot_matrix[1][1] + rot_matrix[2][2])) / 2;
+      quat[0] = copysign(quat[0], rot_matrix[2][1] - rot_matrix[1][2]);
+      quat[1] = copysign(quat[1], rot_matrix[0][2] - rot_matrix[2][0]);
+      quat[2] = copysign(quat[2], rot_matrix[1][0] - rot_matrix[0][1]);
+
+      float temp = quat[2];
+      quat[2] = quat[1];
+      quat[1] = -quat[0];
+      quat[0] = -temp;
+      
       tf.setRotation(quat);
       //get device serial number
       std::string cur_sn = GetTrackedDeviceString( vr_.pHMD_, i, vr::Prop_SerialNumber_String );
@@ -594,12 +608,13 @@ void VIVEnode::Run()
       // It's a HMD
       if (dev_type == 1)
       {
-        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "hmd"));
+
+        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world", "hmd"));
       }
       // It's a controller
       if (dev_type == 2)
       {
-        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "controller_"+cur_sn));
+        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world", "controller_"+cur_sn));
 
         vr::VRControllerState_t state;
         vr_.HandleInput(i, state);
@@ -633,12 +648,12 @@ void VIVEnode::Run()
       if (dev_type == 3)
       {
 
-        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "tracker_"+cur_sn));
+        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world", "tracker_"+cur_sn));
       }
       // It's a lighthouse
       if (dev_type == 4)
       {
-        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world_vive", "lighthouse_"+cur_sn));
+        tf_broadcaster_.sendTransform(tf::StampedTransform(tf, ros::Time::now(), "world", "lighthouse_"+cur_sn));
       }
 
     }
@@ -650,7 +665,7 @@ void VIVEnode::Run()
     quat_world.setRPY(0, 0, 0);
     tf_world.setRotation(quat_world);
 
-    tf_broadcaster_.sendTransform(tf::StampedTransform(tf_world, ros::Time::now(), "world", "world_vive"));
+    //tf_broadcaster_.sendTransform(tf::StampedTransform(tf_world, ros::Time::now(), "world", "world_vive"));
 
 #ifdef USE_IMAGE
     pMainApplication->HandleInput();
