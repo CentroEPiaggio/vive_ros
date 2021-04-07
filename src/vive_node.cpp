@@ -7,6 +7,7 @@
 #include <sensor_msgs/JoyFeedback.h>
 #include <std_srvs/Empty.h>
 #include "vive_ros/vr_interface.h"
+#include <opencv2/imgcodecs.hpp>
 
 void handleDebugMessages(const std::string &msg) {ROS_DEBUG(" [VIVE] %s",msg.c_str());}
 void handleInfoMessages(const std::string &msg) {ROS_INFO(" [VIVE] %s",msg.c_str());}
@@ -22,6 +23,7 @@ void handleErrorMessages(const std::string &msg) {ROS_ERROR(" [VIVE] %s",msg.c_s
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <cv_bridge/cv_bridge.h>
+
 enum {X, Y, XY};
 enum {L, R, LR};
 
@@ -32,7 +34,6 @@ class CMainApplicationMod : public CMainApplication{
     CMainApplicationMod( int argc, char *argv[] )
     : CMainApplication( argc, argv )
     , hmd_fov(110*M_PI/180) {
-//      m_bShowCubes = false;
       for(int i=0;i<LR;i++){
         cam_f[i][X] = cam_f[i][Y] = 600;
       }
@@ -48,10 +49,16 @@ class CMainApplicationMod : public CMainApplication{
     int RenderFrame_hz_count;
 
     void InitTextures(){
-      ros_img[L] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(255, 255, 255));
-      ros_img[R] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(255, 255, 255));
-      hmd_panel_img[L] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(255, 255, 255));
-      hmd_panel_img[R] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(255, 255, 255));
+      ros_img[L] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(0, 0, 0));
+      //       std::cout << "**************************************************************************************************************" <<std::endl;
+
+      // std::cout << m_nRenderWidth <<std::endl;
+      // std::cout << m_nRenderHeight <<std::endl;
+      //       std::cout << "**************************************************************************************************************" <<std::endl;
+
+      ros_img[R] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(0, 0, 0));
+      hmd_panel_img[L] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(0, 0, 0));
+      hmd_panel_img[R] = cv::Mat(cv::Size(m_nRenderWidth, m_nRenderHeight), CV_8UC3, CV_RGB(0, 0, 0));
       for ( int i = 0; i < vr::k_unMaxTrackedDeviceCount; i++){
         if(m_pHMD->GetTrackedDeviceClass(i) == vr::TrackedDeviceClass_HMD){
           m_pHMD->GetStringTrackedDeviceProperty( i, vr::Prop_ScreenshotHorizontalFieldOfViewDegrees_Float, (char *)&hmd_fov_h, sizeof(float), NULL );
@@ -79,6 +86,7 @@ class CMainApplicationMod : public CMainApplication{
         glFlush();
         glFinish();
       }
+
       if ( m_iTrackedControllerCount != m_iTrackedControllerCount_Last || m_iValidPoseCount != m_iValidPoseCount_Last ){
         m_iValidPoseCount_Last = m_iValidPoseCount;
         m_iTrackedControllerCount_Last = m_iTrackedControllerCount;
@@ -92,17 +100,29 @@ class CMainApplicationMod : public CMainApplication{
   private:
     cv::Mat hmd_panel_img[LR];
     cv::Mat ros_img_resized[LR];
+    
+
     void processROSStereoImage(cv::Mat (&in)[LR], cv::Mat (&out)[LR]){
       const double hmd_eye2panel_z[XY] = { (double)out[L].cols/2/tan(hmd_fov/2), (double)out[L].rows/2/tan(hmd_fov/2) };
       const double cam_pic_size[LR][XY] = { { (double)in[L].cols, (double)in[L].rows }, { (double)in[R].cols, (double)in[R].rows } };
       double cam_fov[LR][XY];
       int cam_pic_size_on_hmd[LR][XY];
       cv::Mat hmd_panel_roi[LR];
+      // std::cout << "hmd_eye2panel_z" << std::endl;
+      // std::cout << hmd_eye2panel_z[XY] << std::endl;
+      // std::cout << *hmd_eye2panel_z<< std::endl;
+      // std::cout << "cam_pic_size" << std::endl;
+      // std::cout << cam_pic_size[LR][XY] << std::endl;
+      // std::cout << *cam_pic_size << std::endl;
+     
+    
       for(int i=0;i<LR;i++){
         ROS_INFO_THROTTLE(3.0,"Process ROS image[%d] (%dx%d) with fov (%dx%d) to (%dx%d)", i, in[i].cols, in[i].rows, (int)cam_f[i][X], (int)cam_f[i][Y], out[i].cols, out[i].rows);
         for(int j=0;j<XY;j++){
           cam_fov[i][j] = 2 * atan( cam_pic_size[i][j]/2 / cam_f[i][j] );
           cam_pic_size_on_hmd[i][j] = (int)( hmd_eye2panel_z[j] * 2 * tan(cam_fov[i][j]/2) );
+          // cam_pic_size_on_hmd[i][X] = 1400;
+          // cam_pic_size_on_hmd[i][Y] = 1600;
         }
         cv::resize(in[i], ros_img_resized[i], cv::Size(cam_pic_size_on_hmd[i][X], cam_pic_size_on_hmd[i][Y]));
         cv::flip(ros_img_resized[i], ros_img_resized[i], 0);
@@ -112,7 +132,7 @@ class CMainApplicationMod : public CMainApplication{
         cv::Rect cropped_rect;
         if( !hmd_panel_area_rect.contains( cv::Point(ros_img_resized_rect.x, ros_img_resized_rect.y) )
             || !hmd_panel_area_rect.contains( cv::Point(ros_img_resized_rect.x+ros_img_resized_rect.width,ros_img_resized_rect.y+ros_img_resized_rect.height) ) ){
-          ROS_WARN_THROTTLE(3.0,"Resized ROS image[%d] (%dx%d) exceed HMD eye texture (%dx%d) -> Cropping",i,cam_pic_size_on_hmd[i][X],cam_pic_size_on_hmd[i][Y],m_nRenderWidth,m_nRenderHeight);
+          //ROS_WARN_THROTTLE(3.0,"Resized ROS image[%d] (%dx%d) exceed HMD eye texture (%dx%d) -> Cropping",i,cam_pic_size_on_hmd[i][X],cam_pic_size_on_hmd[i][Y],m_nRenderWidth,m_nRenderHeight);
           cropped_rect = ros_img_resized_rect & hmd_panel_area_rect;
           ros_img_resized[i] = ros_img_resized[i](cropped_rect);
         }
@@ -120,6 +140,10 @@ class CMainApplicationMod : public CMainApplication{
         ros_img_resized[i].copyTo(out[i](hmd_panel_draw_rect));
       }
     }
+
+
+    
+
 
     void UpdateTexturemaps(){
       processROSStereoImage(ros_img, hmd_panel_img);
@@ -131,11 +155,16 @@ class CMainApplicationMod : public CMainApplication{
         glGetTexLevelParameteriv( GL_TEXTURE_2D , 0 , GL_TEXTURE_WIDTH , &cur_tex_w );
         glGetTexLevelParameteriv( GL_TEXTURE_2D , 0 , GL_TEXTURE_HEIGHT , &cur_tex_h );
         glTexSubImage2D( GL_TEXTURE_2D, 0, cur_tex_w/2 - hmd_panel_img[i].cols/2, cur_tex_h/2 - hmd_panel_img[i].rows/2, hmd_panel_img[i].cols, hmd_panel_img[i].rows, GL_RGB, GL_UNSIGNED_BYTE, hmd_panel_img[i].data );
-//        glGenerateMipmap(GL_TEXTURE_2D);
         glBindTexture( GL_TEXTURE_2D, 0 );
       }
     }
 };
+
+cv::Mat translateImg(cv::Mat &img, int offsetx, int offsety){
+      cv::Mat trans_mat = (cv::Mat_<double>(2,3) << 1, 0, offsetx, 0, 1, offsety);
+      cv::warpAffine(img,img,trans_mat,img.size());
+      return img;
+    }
 
 #elif defined USE_VULKAN
 #include "vive_ros/hellovr_vulkan_main.h"
@@ -429,12 +458,13 @@ class VIVEnode
     VRInterface vr_;
 
 #ifdef USE_IMAGE
-    void imageCb_L(const sensor_msgs::ImageConstPtr& msg);
-    void imageCb_R(const sensor_msgs::ImageConstPtr& msg);
+    void imageCb_L(const sensor_msgs::CompressedImageConstPtr& msg);
+    void imageCb_R(const sensor_msgs::CompressedImageConstPtr& msg);
     void infoCb_L(const sensor_msgs::CameraInfoConstPtr& msg);
     void infoCb_R(const sensor_msgs::CameraInfoConstPtr& msg);
     CMainApplicationMod *pMainApplication;
-    image_transport::Subscriber sub_L,sub_R;
+    //image_transport::Subscriber sub_L,sub_R;
+    ros::Subscriber sub_L,sub_R;
     ros::Subscriber sub_i_L,sub_i_R;
 #endif
 
@@ -467,11 +497,11 @@ VIVEnode::VIVEnode(int rate)
 
 #ifdef USE_IMAGE
   image_transport::ImageTransport it(nh_);
-  sub_L = it.subscribe("image_left", 1, &VIVEnode::imageCb_L, this);
-  sub_R = it.subscribe("image_right", 1, &VIVEnode::imageCb_R, this);
+  sub_L = nh_.subscribe("image_left", 1, &VIVEnode::imageCb_L, this);
+  sub_R = nh_.subscribe("image_right", 1, &VIVEnode::imageCb_R, this);
   sub_i_L = nh_.subscribe("camera_info_left", 1, &VIVEnode::infoCb_L, this);
   sub_i_R = nh_.subscribe("camera_info_right", 1, &VIVEnode::infoCb_R, this);
-  pMainApplication = new CMainApplicationMod( 0, NULL );
+  pMainApplication = new CMainApplicationMod( 1, NULL );
   if (!pMainApplication->BInit()){
     pMainApplication->Shutdown();
     Shutdown();
@@ -680,30 +710,37 @@ void VIVEnode::Run()
 }
 
 #ifdef USE_IMAGE
-void VIVEnode::imageCb_L(const sensor_msgs::ImageConstPtr& msg){
-  if(msg->width > 0 && msg->height > 0 ){
+void VIVEnode::imageCb_L(const sensor_msgs::CompressedImageConstPtr& msg){
+  if(true){
     try {
-      pMainApplication->ros_img[L] = cv_bridge::toCvCopy(msg,"rgb8")->image;
+      // pMainApplication->ros_img[L] = cv_bridge::toCvCopy(msg,"rgb8")->image;
+      pMainApplication->ros_img[L] = cv::imdecode(cv::Mat(msg->data),1);//convert compressed image data to cv::Mat
+      translateImg(pMainApplication->ros_img[L],100,0);
+        
+      
     } catch (cv_bridge::Exception& e) {
-      ROS_ERROR_THROTTLE(1, "Unable to convert '%s' image for display: '%s'", msg->encoding.c_str(), e.what());
+      //ROS_ERROR_THROTTLE(1, "Unable to convert '%s' image for display: '%s'", msg->encoding.c_str(), e.what());
     }
   }else{
-    ROS_WARN_THROTTLE(3, "Invalid image_left size (%dx%d) use default", msg->width, msg->height);
+    //ROS_WARN_THROTTLE(3, "Invalid image_left size (%dx%d) use default", msg->width, msg->height);
   }
 }
-void VIVEnode::imageCb_R(const sensor_msgs::ImageConstPtr& msg){
-  if(msg->width > 0 && msg->height > 0 ){
+void VIVEnode::imageCb_R(const sensor_msgs::CompressedImageConstPtr& msg){
+  if(true){
     try {
-      pMainApplication->ros_img[R] = cv_bridge::toCvCopy(msg,"rgb8")->image;
+      // pMainApplication->ros_img[R] = cv_bridge::toCvCopy(msg,"rgb8")->image;
+      pMainApplication->ros_img[R] = cv::imdecode(cv::Mat(msg->data),1);//convert compressed image data to cv::Mat
+      translateImg(pMainApplication->ros_img[R],-100,0);
     } catch (cv_bridge::Exception& e) {
-      ROS_ERROR_THROTTLE(1, "Unable to convert '%s' image for display: '%s'", msg->encoding.c_str(), e.what());
+      //ROS_ERROR_THROTTLE(1, "Unable to convert '%s' image for display: '%s'", msg->encoding.c_str(), e.what());
     }
   }else{
-    ROS_WARN_THROTTLE(3, "Invalid image_right size (%dx%d) use default", msg->width, msg->height);
+    //ROS_WARN_THROTTLE(3, "Invalid image_right size (%dx%d) use default", msg->width, msg->height);
   }
 }
 void VIVEnode::infoCb_L(const sensor_msgs::CameraInfoConstPtr& msg){
   if(msg->K[0] > 0.0 && msg->K[4] > 0.0 ){
+
     pMainApplication->cam_f[L][0] = msg->K[0];
     pMainApplication->cam_f[L][1] = msg->K[4];
   }else{
@@ -711,7 +748,8 @@ void VIVEnode::infoCb_L(const sensor_msgs::CameraInfoConstPtr& msg){
   }
 }
 void VIVEnode::infoCb_R(const sensor_msgs::CameraInfoConstPtr& msg){
-  if(msg->K[0] > 0.0 && msg->K[4] > 0.0 ){
+  if(msg->K[0] > 0.0 && msg->K[4] > 0.0 ){ 
+
     pMainApplication->cam_f[R][0] = msg->K[0];
     pMainApplication->cam_f[R][1] = msg->K[4];
   }else{
